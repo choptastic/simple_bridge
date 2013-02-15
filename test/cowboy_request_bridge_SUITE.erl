@@ -8,65 +8,82 @@
 suite() ->
     [{timetrap,{seconds,30}}].
 
-init_per_suite(Config) ->
-    Config.
+%% init_per_suite(Config) ->
+%%     Config.
 
-end_per_suite(_Config) ->
-    ok.
-
-init_per_testcase(_TestCase, Config) ->
-    Req = #http_req{socket = undefined,
-		    transport = cowboy_tcp_transport,
-		    connection = keepalive,
-		    pid = undefined,
-		    method = 'GET',
-		    version = {1,1},
-		    peer = undefined,
-		    host = [<<"localhost">>],
-		    host_info = undefined,
-		    raw_host = <<"localhost">>,
-		    port = 8000,
-		    path = [],
-		    path_info = undefined,
-		    raw_path = <<"/">>,
-		    qs_vals = undefined,
-		    raw_qs = <<>>,
-		    bindings = [],
-		    headers =
-			[{'Connection',<<"keep-alive">>},
-			 {'Accept-Encoding',<<"gzip, deflate">>},
-			 {'Accept-Language',<<"en-us">>},
-			 {'Accept',<<"text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8">>},
-			 {'User-Agent',<<"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_7_5) AppleWebKit/536.26.17 (KHTML, like Gecko) Version/6.0.2 Safari/536.26.17">>},
-			 {'Host',<<"localhost">>}],
-		    p_headers = [{'Connection',[<<"keep-alive">>]}],
-		    cookies = undefined,
-		    meta = [],
-		    body_state = waiting,
-		    buffer = <<>>,
-		    resp_state = waiting,
-		    resp_headers = [],
-		    resp_body = <<>>,
-		    onresponse = undefined,
-		    urldecode = undefined},
-
-    ReqBridge = simple_bridge:make_request(cowboy_request_bridge, {Req, "./priv"}),
-    %% Method = ReqBridge:request_method(),
-    %% 'GET' = Method,
-    %% ct:log("-> get_method, ~p, ~p", [Method, ReqBridge]),
-    [{reg, Req}, {req_bridge, ReqBridge} | Config].
-
-end_per_testcase(_TestCase, Config) ->
-    ok.
+%% end_per_suite(_Config) ->
+%%     ok.
 
 all() ->
+	[{group, onrequest}].
+
+groups() ->
     [
-     method
+     {onrequest, [], [
+		     % method,
+		      onrequest
+		     ]}
     ].
 
-method(Config) ->
-    ReqBridge = ?config(req_bridge, Config),
-    Method = ReqBridge:request_method(),
-    %% 'GET' = Method,
-    ct:log("-> get_bridge, ~p", [ReqBridge]),
+init_per_suite(Config) ->
+	application:start(inets),
+	application:start(cowboy),
+	Config.
+
+end_per_suite(_Config) ->
+	application:stop(cowboy),
+	application:stop(inets),
+	ok.
+
+init_per_group(onrequest, Config) ->
+	Port = 33082,
+	Transport = cowboy_tcp_transport,
+	{ok, _} = cowboy:start_listener(onrequest, 100,
+		Transport, [{port, Port}],
+		cowboy_http_protocol, [
+			{dispatch, init_dispatch(Config)},
+			{max_keepalive, 50},
+			{onrequest, fun onrequest_hook/1},
+			{timeout, 500}
+		]),
+	{ok, Client} = cowboy_client:init([]),
+	[{scheme, <<"http">>}, {port, Port}, {opts, []},
+		{transport, Transport}, {client, Client}|Config].
+
+end_per_group(Name, _) ->
+    cowboy:stop_listener(Name),
     ok.
+
+onrequest(Config) ->
+    Client = ?config(client, Config),
+    {ok, Client2} = cowboy_client:request(<<"GET">>, build_url("/", Config), Client),
+    ct:log("-> onrquest1, ~p", [Client2]),
+    {ok, 200, Headers, Client3} = cowboy_client:response(Client2),
+    ct:log("-> onrquest2, ~p", [Client3]),
+    {<<"server">>, <<"Serenity">>} = lists:keyfind(<<"server">>, 1, Headers),
+    {ok, <<"http_handler">>, _} = cowboy_client:response_body(Client3).
+
+%% Hook for the above onrequest tests.
+onrequest_hook(Req) ->
+    ct:log("-> onrquest_hook, ~p", [Req]),
+	case cowboy_http_req:qs_val(<<"reply">>, Req) of
+		{undefined, Req2} ->
+			{ok, Req3} = cowboy_http_req:set_resp_header(
+				'Server', <<"Serenity">>, Req2),
+			Req3;
+		{_, Req2} ->
+			{ok, Req3} = cowboy_http_req:reply(
+				200, [], <<"replied!">>, Req2),
+			Req3
+	end.
+
+%% Dispatch configuration.
+init_dispatch(Config) ->
+    [{[<<"localhost">>], [{[], http_handler, []}]}].
+
+build_url(Path, Config) ->
+    {scheme, Scheme} = lists:keyfind(scheme, 1, Config),
+    {port, Port} = lists:keyfind(port, 1, Config),
+    PortBin = list_to_binary(integer_to_list(Port)),
+    PathBin = list_to_binary(Path),
+    << Scheme/binary, "://localhost:", PortBin/binary, PathBin/binary >>.
