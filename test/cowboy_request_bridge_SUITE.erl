@@ -54,7 +54,6 @@ end_per_group(Name, _) ->
 
 %% Dispatch configuration.
 init_dispatch(Config) ->
-    %% Dir = filename:join(?config(priv_dir, Config), "templates"),
     [{[<<"localhost">>], [{[], nitrogen_handler, []}]}].
 
 build_url(Path, Config) ->
@@ -67,24 +66,12 @@ build_url(Path, Config) ->
 onrequest(Config) ->
     Client = ?config(client, Config),
     {ok, Client2} = cowboy_client:request(<<"GET">>, build_url("/", Config), Client),
-    ct:log("-> onrquest1, ~p", [Client2]),
     {ok, 200, Headers, Client3} = cowboy_client:response(Client2),
-    ct:log("-> onrquest2, ~p", [Client3]),
-    %% {<<"server">>, <<"Serenity">>} = lists:keyfind(<<"server">>, 1, Headers),
-    %% {ok, <<"http_handler">>, _} = cowboy_client:response_body(Client3).
+    {ok, Body, _} = cowboy_client:response_body(Client3),
+    %% somewhere in the reply page we should have a string from label
+    %% created by nitrogen page index.erl
+    nomatch /= binary:match(Body, <<"some text in label for test">>),
     ok.
 
 %% Hook for the above onrequest tests.
-onrequest_hook(Req) ->
-    ct:log("-> onrquest_hook, ~p", [Req]),
-    Req.
-    %% case cowboy_http_req:qs_val(<<"reply">>, Req) of
-    %% 	{undefined, Req2} ->
-    %% 	    {ok, Req3} = cowboy_http_req:set_resp_header(
-    %% 			   'Server', <<"Serenity">>, Req2),
-    %% 	    Req3
-    %% 	    %% {_, Req2} ->
-    %% 	    %% 	{ok, Req3} = cowboy_http_req:reply(
-    %% 	    %% 		200, [], <<"replied!">>, Req2),
-    %% 	    %% 	Req3
-    %% end.
+onrequest_hook(Req) -> Req.

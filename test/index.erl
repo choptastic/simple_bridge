@@ -12,8 +12,8 @@ main() ->
 templates() ->
     filename:join(lists:reverse(tl(lists:reverse(filename:split(code:priv_dir(?APP)))))).
 
-title() -> "Simple_Bridge Test".
-headline() -> "Simple_Bridge Test".
+%% title() -> "Simple_Bridge Test".
+%% headline() -> "Simple_Bridge Test".
 
 body() ->
     [
