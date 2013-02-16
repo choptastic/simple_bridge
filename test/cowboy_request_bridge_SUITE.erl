@@ -23,6 +23,8 @@ groups() ->
 		     ]}
     ].
 
+
+%%for cowboy 0.6
 init_per_suite(Config) ->
 	application:start(inets),
 	application:start(cowboy),
@@ -55,6 +57,48 @@ end_per_group(Name, _) ->
 %% Dispatch configuration.
 init_dispatch(Config) ->
     [{[<<"localhost">>], [{[], nitrogen_handler, []}]}].
+
+
+
+
+
+%% %% for cowboy 0.8
+%% init_per_suite(Config) ->
+%%     application:start(crypto),
+%%     application:start(ranch),
+%%     application:start(cowboy),
+%%     Config.
+
+%% end_per_suite(_Config) ->
+%%     application:stop(cowboy),
+%%     application:stop(ranch),
+%%     application:stop(crypto),
+%%     ok.
+
+%% init_per_group(onrequest, Config) ->
+%%     Port = 33084,
+%%     Transport = ranch_tcp,
+%%     {ok, _} = cowboy:start_http(onrequest, 100, [{port, Port}], [
+%% 								 {env, [{dispatch, init_dispatch(Config)}]},
+%% 								 {max_keepalive, 50},
+%% 								 {onrequest, fun onrequest_hook/1},
+%% 								 {timeout, 500}
+%% 								]),
+%%     {ok, Client} = cowboy_client:init([]),
+%%     [{scheme, <<"http">>}, {port, Port}, {opts, []},
+%%      {transport, Transport}, {client, Client}|Config];
+
+%% end_per_group(Name, _) ->
+%%     cowboy:stop_listener(Name),
+%%     ok.
+
+
+%% init_dispatch(Config) ->
+%%     cowboy_router:compile([
+%% 			   {"localhost", [
+%% 					  {"/", nitrogen_handler, []}
+%% 					 ]}
+%% 			  ]).
 
 build_url(Path, Config) ->
     {scheme, Scheme} = lists:keyfind(scheme, 1, Config),
