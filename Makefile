@@ -10,5 +10,4 @@ clean:
 	./rebar clean
 
 test: compile
-	./rebar eunit
 	./rebar ct

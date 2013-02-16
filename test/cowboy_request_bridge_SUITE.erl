@@ -55,7 +55,7 @@ end_per_group(Name, _) ->
 %% Dispatch configuration.
 init_dispatch(Config) ->
     %% Dir = filename:join(?config(priv_dir, Config), "templates"),
-    [{[<<"localhost">>], [{[], http_handler, []}]}].
+    [{[<<"localhost">>], [{[], nitrogen_handler, []}]}].
 
 build_url(Path, Config) ->
     {scheme, Scheme} = lists:keyfind(scheme, 1, Config),
