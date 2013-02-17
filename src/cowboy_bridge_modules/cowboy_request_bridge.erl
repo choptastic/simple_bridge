@@ -6,6 +6,7 @@
 -module (cowboy_request_bridge).
 -behaviour (simple_bridge_request).
 -include_lib ("simple_bridge.hrl").
+-include_lib("common_test/include/ct.hrl").
 
 -export ([
     init/1,
@@ -23,6 +24,7 @@ new_key() ->
     {cowboy_bridge,now()}.
 
 init({Req,DocRoot}) ->
+    ct:log("-> cowboy req. bridge, init ~p", [erlang:get_stacktrace()]),
     ReqKey = new_key(),
     NewRequestCache = #request_cache{
         body=not_loaded,
@@ -35,6 +37,7 @@ init({Req,DocRoot}) ->
 protocol(_ReqKey) -> undefined.
 
 request_method(ReqKey) ->
+    ct:log("-> cowboy req. bridge, req. method ~p", [erlang:get_stacktrace()]),
     ?GET,
     {Method, Req} = cowboy_http_req:method(Req),
     Method.
@@ -70,6 +73,7 @@ peer_port(ReqKey) ->
     Port.
 
 headers(ReqKey) ->
+    ct:log("-> cowboy req. bridge, headers ~p", [erlang:get_stacktrace()]),
     ?GET,
     {Headers,Req} = cowboy_http_req:headers(Req),
     [{simple_bridge_util:atomize_header(Header),b2l(Val)} || {Header,Val} <- Headers].
@@ -93,7 +97,7 @@ query_params(ReqKey) ->
 
 post_params(ReqKey) ->
     Body = request_body(ReqKey,binary),
-    BodyQs = parse_qs(Body), 
+    BodyQs = parse_qs(Body),
     [{b2l(K),b2l(V)} || {K,V} <- BodyQs].
 
 request_body(ReqKey) ->
@@ -103,7 +107,7 @@ request_body(ReqKey,binary) ->
     ?GET,
      %% We cache the body here because we can't request the body twice in cowboy or it'll crash
     {Body,NewReq} = case _RequestCache#request_cache.body of
-        not_loaded -> 
+        not_loaded ->
             {ok, B, R} = cowboy_http_req:body(Req),
             {B,R};
         B -> {B,Req}
