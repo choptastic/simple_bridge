@@ -19,21 +19,25 @@ groups() ->
     [
      {onrequest, [], [
 		     % method,
-		      onrequest
+		      onrequest,
+		      lebel_request,
+		      static_request
 		     ]}
     ].
 
 
 %%for cowboy 0.6
 init_per_suite(Config) ->
-	application:start(inets),
-	application:start(cowboy),
-	Config.
+    application:start(inets),
+    application:start(cowboy),
+    application:start(mimetypes),
+    Config.
 
 end_per_suite(_Config) ->
-	application:stop(cowboy),
-	application:stop(inets),
-	ok.
+    application:stop(cowboy),
+    application:stop(inets),
+    application:stop(mimetypes),
+    ok.
 
 init_per_group(onrequest, Config) ->
 	Port = 33082,
@@ -56,10 +60,61 @@ end_per_group(Name, _) ->
 
 %% Dispatch configuration.
 init_dispatch(Config) ->
-    [{[<<"localhost">>], [{[], nitrogen_handler, []}]}].
+    DocRoot = ?config(data_dir, Config),
+    ct:log("-> doc root ~p", [DocRoot]),
+    %% [{[<<"localhost">>], [{[], nitrogen_handler, [{doc_root, DocRoot}]}]}].
+    [{[<<"localhost">>], [{'_', nitrogen_handler, [{doc_root, DocRoot}]}]}].
 
 
+build_url(Path, Config) ->
+    {scheme, Scheme} = lists:keyfind(scheme, 1, Config),
+    {port, Port} = lists:keyfind(port, 1, Config),
+    PortBin = list_to_binary(integer_to_list(Port)),
+    PathBin = list_to_binary(Path),
+    << Scheme/binary, "://localhost:", PortBin/binary, PathBin/binary >>.
 
+onrequest(Config) ->
+    Client = ?config(client, Config),
+    URL = build_url("/", Config),
+    ct:log("-> url ~p", [URL]),
+    {ok, Client2} = cowboy_client:request(<<"GET">>, URL, Client),
+    ct:log("-> request sent", []),
+    {ok, 200, Headers, Client3} = cowboy_client:response(Client2),
+    ct:log("-> response sent", []),
+    {ok, Body, _} = cowboy_client:response_body(Client3),
+    %% somewhere in the reply page we should have a string from label
+    %% created by nitrogen page index.erl
+    nomatch /= binary:match(Body, <<"some text in label for test">>),
+    ok.
+
+%% Hook for the above onrequest tests.
+onrequest_hook(Req) -> Req.
+
+lebel_request(Config) ->
+    Client = ?config(client, Config),
+    {ok, Client2} = cowboy_client:request(<<"GET">>, build_url("/label", Config), Client),
+    ct:log("-> request sent", []),
+    {ok, 200, Headers, Client3} = cowboy_client:response(Client2),
+    ct:log("-> response sent", []),
+    {ok, Body, _} = cowboy_client:response_body(Client3),
+    %% somewhere in the reply page we should have a string from label
+    %% created by nitrogen page index.erl
+    nomatch /= binary:match(Body, <<"label test">>),
+    ok.
+
+static_request(Config) ->
+    Client = ?config(client, Config),
+    URL = build_url("/plain.html", Config),
+    ct:log("-> url ~p", [URL]),
+    {ok, Client2} = cowboy_client:request(<<"GET">>, URL, Client),
+    ct:log("-> request sent", []),
+    {ok, 200, Headers, Client3} = cowboy_client:response(Client2),
+    ct:log("-> response sent", []),
+    {ok, Body, _} = cowboy_client:response_body(Client3),
+    %% somewhere in the reply page we should have a string from label
+    %% created by nitrogen page index.erl
+    nomatch /= binary:match(Body, <<"Body Generated from html file">>),
+    ok.
 
 
 %% %% for cowboy 0.8
@@ -99,23 +154,3 @@ init_dispatch(Config) ->
 %% 					  {"/", nitrogen_handler, []}
 %% 					 ]}
 %% 			  ]).
-
-build_url(Path, Config) ->
-    {scheme, Scheme} = lists:keyfind(scheme, 1, Config),
-    {port, Port} = lists:keyfind(port, 1, Config),
-    PortBin = list_to_binary(integer_to_list(Port)),
-    PathBin = list_to_binary(Path),
-    << Scheme/binary, "://localhost:", PortBin/binary, PathBin/binary >>.
-
-onrequest(Config) ->
-    Client = ?config(client, Config),
-    {ok, Client2} = cowboy_client:request(<<"GET">>, build_url("/", Config), Client),
-    {ok, 200, Headers, Client3} = cowboy_client:response(Client2),
-    {ok, Body, _} = cowboy_client:response_body(Client3),
-    %% somewhere in the reply page we should have a string from label
-    %% created by nitrogen page index.erl
-    nomatch /= binary:match(Body, <<"some text in label for test">>),
-    ok.
-
-%% Hook for the above onrequest tests.
-onrequest_hook(Req) -> Req.
