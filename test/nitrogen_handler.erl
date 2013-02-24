@@ -2,7 +2,7 @@
 
 -module(nitrogen_handler).
 -behaviour(cowboy_http_handler).
--export([init/3, handle/2, terminate/2]).
+-export([init/3, handle/2, terminate/3]).
 -include_lib("common_test/include/ct.hrl").
 -record(state, {headers, body, doc_root}).
 
@@ -26,13 +26,15 @@ handle(Req, #state{doc_root = DocRoot} = State) ->
     ct:log("-> context type, ~p", [Type]),
 
     {ok, Req2} = nitrogen:run(),
-    ct:log("-> req, ~p", [Req2]),
-    %%{ok, Req2} = cowboy_http_req:reply(200, Headers, Body, Req),
+    ct:log("-> after nitrogen_run req, ~p", [Req2]),
 
-    Context2 = wf_context:context(),
-    ct:log("-> context2, ~p", [Context2]),
+   % ct:log("-> setting context2 after run_nitrogen, ~p", [Context2]),
+
+    %% Context2 = wf_context:context(),
+    %% ct:log("-> context2, ~p", [Context2]),
 
     {ok, Req2, State}.
 
-terminate(_Req, _State) ->
-	ok.
+terminate(_Reason, _Req, _State) ->
+    ok.
+

@@ -9,7 +9,7 @@
 -export ([build_response/2,init/1]).
 
 
-init(Request) when 
+init(Request) when
         is_tuple(Request),
         element(1,Request)==simple_bridge_request_wrapper,
         element(2,Request)==cowboy_request_bridge ->
@@ -41,13 +41,13 @@ build_response(ReqKey, Res) ->
 
             % Send the cowboy cookies
             {ok, FinReq} = send(Code,Headers2,Res#response.cookies,Body,Req),
-        
+
             NewRequestCache = RequestCache#request_cache{
                 request=FinReq
             },
             cowboy_request_server:set(ReqKey,NewRequestCache),
             {ok,FinReq};
-           
+
 
         {file, P} ->
             %% Note: that this entire {file, Path} section should be avoided
@@ -67,7 +67,7 @@ build_response(ReqKey, Res) ->
             Path = strip_leading_slash(P),
 
             ExpireDate = simple_bridge_util:expires(years, 10),
-            
+
             [$. | Ext] = filename:extension(Path),
             Mimetype =  mimetypes:extension(Ext),
 
@@ -75,17 +75,17 @@ build_response(ReqKey, Res) ->
                 {"Expires", ExpireDate},
                 {"Content-Type",Mimetype}
             ],
-            
+
             io:format("Serving static file ~p from docroot of ~p ~n",[Path, DocRoot]),
-        
+
             FullPath = filename:join(DocRoot, Path),
             {ok, FinReq} = case file:read_file(FullPath) of
-                {error,enoent} -> 
+                {error,enoent} ->
                     {ok, _R} = send(404,[],[],"Not Found",Req);
-                {ok,Bin} -> 
+                {ok,Bin} ->
                     {ok, _R} = send(200,Headers,[],Bin,Req)
             end,
-    
+
             NewRequestCache = RequestCache#request_cache{
                 request=FinReq
             },
@@ -105,8 +105,8 @@ strip_leading_slash(Path) ->
 send(Code,Headers,Cookies,Body,Req) ->
     Req1 = prepare_cookies(Req,Cookies),
     Req2 = prepare_headers(Req1,Headers),
-    {ok, Req3} = cowboy_http_req:set_resp_body(Body,Req2),
-    {ok, _ReqFinal} = cowboy_http_req:reply(Code, Req3).
+    {ok, Req3} = cowboy_req:set_resp_body(Body,Req2),
+    {ok, _ReqFinal} = cowboy_req:reply(Code, Req3).
 
 prepare_cookies(Req,Cookies) ->
     lists:foldl(fun(C,R) ->
@@ -115,13 +115,13 @@ prepare_cookies(Req,Cookies) ->
         Path = iol2b(C#cookie.path),
         SecsToLive = C#cookie.minutes_to_live * 60,
         Options = [{path,Path},{max_age,SecsToLive}],
-        {ok,NewReq} = cowboy_http_req:set_resp_cookie(Name,Value,Options,R),
+        {ok,NewReq} = cowboy_req:set_resp_cookie(Name,Value,Options,R),
         NewReq
     end,Req,Cookies).
 
 prepare_headers(Req,Headers) ->
     lists:foldl(fun({Header,Value},R) ->
-        {ok,NewReq} = cowboy_http_req:set_resp_header(iol2b(Header),iol2b(Value),R),
+        {ok,NewReq} = cowboy_req:set_resp_header(iol2b(Header),iol2b(Value),R),
         NewReq
     end,Req,Headers).
 

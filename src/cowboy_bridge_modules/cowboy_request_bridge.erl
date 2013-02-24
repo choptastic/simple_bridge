@@ -39,16 +39,23 @@ protocol(_ReqKey) -> undefined.
 request_method(ReqKey) ->
     ct:log("-> cowboy req. bridge, req. method ~p", [erlang:get_stacktrace()]),
     ?GET,
-    {Method, Req} = cowboy_http_req:method(Req),
+    {Method, Req} = cowboy_req:method(Req),
+    ct:log("-> after cowboy req. bridge, req. method ~p", [Method]),
     Method.
 
 path(ReqKey) ->
     ?GET,
-    {Path, Req} = cowboy_http_req:path(Req),
-    case Path of
-        [] -> "/";
+    ct:log("-> cowboy req. bridge, path ~p, ~p", [ReqKey, erlang:get_stacktrace()]),
+    {Path, Req} = cowboy_req:path(Req),
+    ct:log("-> after cowboy req. bridge, path ~p, ~p", [Path, erlang:get_stacktrace()]),
+    Path1 = case Path of
+        <<"/">> -> "/";
         _ -> "/" ++ b2l(filename:join(Path)) %Mochweb returns path as /path and Cowboy does not
-    end.
+    end,
+    %% Path1 = b2l(filename:join(Path)), %Mochweb returns path as /path and Cowboy does not
+    ct:log("-> Path cowboy req. bridge, path ~p, ~p", [Path1]),
+    Path1.
+
 
 uri(ReqKey) ->
     ?GET,
@@ -75,20 +82,24 @@ peer_port(ReqKey) ->
 headers(ReqKey) ->
     ct:log("-> cowboy req. bridge, headers ~p", [erlang:get_stacktrace()]),
     ?GET,
-    {Headers,Req} = cowboy_http_req:headers(Req),
+    {Headers,Req} = cowboy_req:headers(Req),
+    ct:log("-> after cowboy req. bridge, headers ~p", [Headers]),
     [{simple_bridge_util:atomize_header(Header),b2l(Val)} || {Header,Val} <- Headers].
-
 
 cookies(ReqKey) ->
     ?GET,
-    {Cookies, NewReq} = cowboy_http_req:cookies(Req),
+    ct:log("-> cowboy req. bridge, cookies ~p, ~p", [ReqKey, erlang:get_stacktrace()]),
+    {Cookies, NewReq} = cowboy_req:cookies(Req),
+    ct:log("-> after cowboy req. bridge, cookies ~p, ~p", [Cookies, erlang:get_stacktrace()]),
     NewRequestCache = _RequestCache#request_cache{request=NewReq},
     ?PUT,
     [{b2l(K),b2l(V)} || {K,V} <- Cookies].
 
 query_params(ReqKey) ->
     ?GET,
-    {QsVals, NewReq} = cowboy_http_req:qs_vals(Req),
+    ct:log("-> cowboy req. bridge, query_params ~p, ~p", [ ReqKey, erlang:get_stacktrace()]),
+    {QsVals, NewReq} = cowboy_req:qs_vals(Req),
+    ct:log("-> after cowboy req. bridge, query_params ~p", [QsVals]),
     NewRequestCache = _RequestCache#request_cache{request=NewReq},
     ?PUT,
     [{b2l(K),b2l(V)} || {K,V} <- QsVals].
