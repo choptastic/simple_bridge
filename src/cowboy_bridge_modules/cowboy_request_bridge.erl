@@ -45,13 +45,17 @@ request_method(ReqKey) ->
 
 path(ReqKey) ->
     ?GET,
-    ct:log("-> cowboy req. bridge, path ~p, ~p", [ReqKey, erlang:get_stacktrace()]),
+    %% ct:log("-> cowboy req. bridge, path ~p, ~p", [ReqKey, erlang:get_stacktrace()]),
     {Path, Req} = cowboy_req:path(Req),
-    ct:log("-> after cowboy req. bridge, path ~p, ~p", [Path, erlang:get_stacktrace()]),
-    Path1 = case Path of
-        <<"/">> -> "/";
-        _ -> "/" ++ b2l(filename:join(Path)) %Mochweb returns path as /path and Cowboy does not
-    end,
+    %%ct:log("-> after cowboy req. bridge, path ~p, ~p", [Path, erlang:get_stacktrace()]),
+
+    io:format("-> after cowboy req. bridge, path ~p, ~p", [Path, erlang:get_stacktrace()]),
+
+    %% Path1 = case Path of
+    %%     <<"/">> -> "/";
+    %%     _ -> "/" ++ b2l(filename:join(Path)) %Mochweb returns path as /path and Cowboy does not
+    %% end,
+    Path1 = b2l(Path),
     %% Path1 = b2l(filename:join(Path)), %Mochweb returns path as /path and Cowboy does not
     ct:log("-> Path cowboy req. bridge, path ~p, ~p", [Path1]),
     Path1.

@@ -11,15 +11,18 @@
 
 init(Request) when
         is_tuple(Request),
-        element(1,Request)==simple_bridge_request_wrapper,
-        element(2,Request)==cowboy_request_bridge ->
-    element(3,Request); %% The third element of Request is the RequestKey from response_bridge
-init({Req,DocRoot}) ->
+        element(1, Request) == simple_bridge_request_wrapper,
+        element(2, Request) == cowboy_request_bridge ->
+    element(3, Request); %% The third element of Request is the RequestKey from response_bridge
+init({Req, DocRoot}) ->
     %% Since cowboy request and response information are the same, this synchronizes it
-    cowboy_request_bridge:init({Req,DocRoot}).
+    cowboy_request_bridge:init({Req, DocRoot}).
 
 build_response(ReqKey, Res) ->
-    RequestCache = #request_cache{request=Req,docroot=DocRoot} = cowboy_request_server:get(ReqKey),
+
+    io:format("in resp bridge , response ~p ~n", [Res]),
+
+    RequestCache = #request_cache{request = Req, docroot = DocRoot} = cowboy_request_server:get(ReqKey),
     % Some values...
     Code = Res#response.statuscode,
 
@@ -36,11 +39,11 @@ build_response(ReqKey, Res) ->
             HasContentType = lists:any(F, ["content-type", "Content-Type", "CONTENT-TYPE"]),
             Headers2 = case HasContentType of
                 true -> Headers;
-                false -> [{"Content-Type", "text/html"}|Headers]
+                false -> [{"Content-Type", "text/html"} | Headers]
             end,
 
             % Send the cowboy cookies
-            {ok, FinReq} = send(Code,Headers2,Res#response.cookies,Body,Req),
+            {ok, FinReq} = send(Code, Headers2, Res#response.cookies, Body, Req),
 
             NewRequestCache = RequestCache#request_cache{
                 request=FinReq
@@ -103,28 +106,52 @@ strip_leading_slash(Path) ->
 
 
 send(Code,Headers,Cookies,Body,Req) ->
-    Req1 = prepare_cookies(Req,Cookies),
-    Req2 = prepare_headers(Req1,Headers),
-    {ok, Req3} = cowboy_req:set_resp_body(Body,Req2),
+    Req1 = prepare_cookies(Req, Cookies),
+    Req2 = prepare_headers(Req1, Headers),
+    Req3 = cowboy_req:set_resp_body(Body, Req2),
     {ok, _ReqFinal} = cowboy_req:reply(Code, Req3).
 
-prepare_cookies(Req,Cookies) ->
-    lists:foldl(fun(C,R) ->
-        Name = iol2b(C#cookie.name),
-        Value = iol2b(C#cookie.value),
-        Path = iol2b(C#cookie.path),
+prepare_cookies(Req, Cookies) ->
+    io:format("prepare cookie : data ~p ~n", [Cookies]),
+    lists:foldl(fun(C, R) ->
+        Name = C#cookie.name,
+        Value = b2l(C#cookie.value),
+        Path = C#cookie.path,
         SecsToLive = C#cookie.minutes_to_live * 60,
-        Options = [{path,Path},{max_age,SecsToLive}],
-        {ok,NewReq} = cowboy_req:set_resp_cookie(Name,Value,Options,R),
-        NewReq
-    end,Req,Cookies).
+        Options = [{path, Path}, {max_age, SecsToLive}],
+	io:format("prepare cookie, fold : ~p ~p ~p ~p ~p ~n", [Name, Value, Path, SecsToLive, Options]),
+        cowboy_req:set_resp_cookie(Name, Value, Options, R)
+    end, Req, Cookies).
 
-prepare_headers(Req,Headers) ->
-    lists:foldl(fun({Header,Value},R) ->
-        {ok,NewReq} = cowboy_req:set_resp_header(iol2b(Header),iol2b(Value),R),
-        NewReq
-    end,Req,Headers).
+%% prepare_cookies(Req, Cookies) ->
+%%     io:format("prepare cookie : data ~p ~n", [Html1]),
+
+%%     lists:foldl(fun(C, R) ->
+%%         Name = iol2b(C#cookie.name),
+%%         Value = iol2b(C#cookie.value),
+%%         Path = iol2b(C#cookie.path),
+%%         SecsToLive = C#cookie.minutes_to_live * 60,
+%%         Options = [{path, Path}, {max_age, SecsToLive}],
+%%         {ok, NewReq} = cowboy_req:set_resp_cookie(Name, Value, Options, R),
+%%         NewReq
+%%     end, Req, Cookies).
+
+
+prepare_headers(Req, Headers) ->
+    lists:foldl(fun({Header, Value}, R) -> cowboy_req:set_resp_header(Header, Value, R) end, Req, Headers).
+
+
+%% prepare_headers(Req,Headers) ->
+%%     lists:foldl(fun({Header,Value},R) ->
+%%         {ok,NewReq} = cowboy_req:set_resp_header(iol2b(Header),iol2b(Value),R),
+%%         NewReq
+%%     end,Req,Headers).
 
 
 iol2b(V) when is_binary(V) -> V;
 iol2b(V) -> iolist_to_binary(V).
+
+b2l(B) when is_binary(B) ->
+    binary_to_list(B);
+b2l(B) ->
+    B.
