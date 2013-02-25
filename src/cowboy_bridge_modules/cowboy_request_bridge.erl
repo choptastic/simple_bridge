@@ -12,7 +12,7 @@
 	  protocol/1,
 	  request_method/1,
 	  path/1,
-	  %% uri/1,
+	  uri/1,
 	  peer_ip/1,
 	  peer_port/1,
 	  headers/1,
@@ -20,7 +20,6 @@
 	  query_params/1,
 	  post_params/1,
 	  request_body/1,
-	  %% socket/1,
 	  recv_from_socket/3
 	 ]).
 
@@ -41,13 +40,8 @@ path(ReqKey) ->
     {Path, Req} = cowboy_req:path(Req),
     ?B2L(Path).
 
-%% uri(ReqKey) ->
-%%     ?GET,
-%%     {RawPath, Req} = case cowboy_http_req:raw_path(Req) of
-%%      undefined -> {undefined, ok};
-%%      {P, R} -> {P, R}
-%%      end,
-%%     b2l(RawPath).
+uri(ReqKey) ->
+    path(ReqKey).
 
 peer_ip(ReqKey) ->
     {RequestCache, Req} = get_key(ReqKey),
