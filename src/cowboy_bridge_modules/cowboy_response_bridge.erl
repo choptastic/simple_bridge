@@ -13,12 +13,12 @@ init(Request) when
       element(1, Request) == simple_bridge_request_wrapper,
       element(2, Request) == cowboy_request_bridge ->
     element(3, Request); %% The third element of Request is the RequestKey from response_bridge
-init({Req, DocRoot}) ->
+init(Req) ->
     %% Since cowboy request and response information are the same, this synchronizes it
-    cowboy_request_bridge:init({Req, DocRoot}).
+    cowboy_request_bridge:init(Req).
 
 build_response(ReqKey, Res) ->
-    RequestCache = #request_cache{request = Req, docroot = DocRoot} = cowboy_request_server:get(ReqKey),
+    RequestCache = #request_cache{request = Req} = cowboy_request_server:get(ReqKey),
     % Some values...
     Code = Res#response.statuscode,
 

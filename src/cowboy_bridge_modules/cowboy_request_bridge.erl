@@ -23,9 +23,9 @@
 	  recv_from_socket/3
 	 ]).
 
-init({Req, DocRoot}) ->
+init(Req) ->
     ReqKey = new_key(),
-    put_key(ReqKey, #request_cache{body = not_loaded, request = Req, docroot = DocRoot}),
+    put_key(ReqKey, #request_cache{body = not_loaded, request = Req}),
     ReqKey.
 
 protocol(_ReqKey) -> undefined.
