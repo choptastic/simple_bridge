@@ -19,9 +19,6 @@ init({Req, DocRoot}) ->
     cowboy_request_bridge:init({Req, DocRoot}).
 
 build_response(ReqKey, Res) ->
-
-    io:format("in resp bridge , response ~p ~n", [Res]),
-
     RequestCache = #request_cache{request = Req, docroot = DocRoot} = cowboy_request_server:get(ReqKey),
     % Some values...
     Code = Res#response.statuscode,
@@ -104,7 +101,6 @@ strip_leading_slash([$/ | Path]) ->
 strip_leading_slash(Path) ->
     Path.
 
-
 send(Code,Headers,Cookies,Body,Req) ->
     Req1 = prepare_cookies(Req, Cookies),
     Req2 = prepare_headers(Req1, Headers),
@@ -112,46 +108,15 @@ send(Code,Headers,Cookies,Body,Req) ->
     {ok, _ReqFinal} = cowboy_req:reply(Code, Req3).
 
 prepare_cookies(Req, Cookies) ->
-    io:format("prepare cookie : data ~p ~n", [Cookies]),
     lists:foldl(fun(C, R) ->
         Name = C#cookie.name,
-        Value = b2l(C#cookie.value),
+        Value = ?B2L(C#cookie.value),
         Path = C#cookie.path,
         SecsToLive = C#cookie.minutes_to_live * 60,
         Options = [{path, Path}, {max_age, SecsToLive}],
-	io:format("prepare cookie, fold : ~p ~p ~p ~p ~p ~n", [Name, Value, Path, SecsToLive, Options]),
         cowboy_req:set_resp_cookie(Name, Value, Options, R)
     end, Req, Cookies).
-
-%% prepare_cookies(Req, Cookies) ->
-%%     io:format("prepare cookie : data ~p ~n", [Html1]),
-
-%%     lists:foldl(fun(C, R) ->
-%%         Name = iol2b(C#cookie.name),
-%%         Value = iol2b(C#cookie.value),
-%%         Path = iol2b(C#cookie.path),
-%%         SecsToLive = C#cookie.minutes_to_live * 60,
-%%         Options = [{path, Path}, {max_age, SecsToLive}],
-%%         {ok, NewReq} = cowboy_req:set_resp_cookie(Name, Value, Options, R),
-%%         NewReq
-%%     end, Req, Cookies).
 
 
 prepare_headers(Req, Headers) ->
     lists:foldl(fun({Header, Value}, R) -> cowboy_req:set_resp_header(Header, Value, R) end, Req, Headers).
-
-
-%% prepare_headers(Req,Headers) ->
-%%     lists:foldl(fun({Header,Value},R) ->
-%%         {ok,NewReq} = cowboy_req:set_resp_header(iol2b(Header),iol2b(Value),R),
-%%         NewReq
-%%     end,Req,Headers).
-
-
-iol2b(V) when is_binary(V) -> V;
-iol2b(V) -> iolist_to_binary(V).
-
-b2l(B) when is_binary(B) ->
-    binary_to_list(B);
-b2l(B) ->
-    B.
