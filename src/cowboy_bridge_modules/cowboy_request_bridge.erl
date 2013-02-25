@@ -6,7 +6,6 @@
 -module (cowboy_request_bridge).
 -behaviour (simple_bridge_request).
 -include_lib ("simple_bridge.hrl").
--include_lib("common_test/include/ct.hrl").
 
 -export ([
 	  init/1,
@@ -25,32 +24,20 @@
 	  recv_from_socket/3
 	 ]).
 
--define(GET,_RequestCache=#request_cache{request=Req}=cowboy_request_server:get(ReqKey)).
--define(PUT,cowboy_request_server:set(ReqKey,NewRequestCache)).
-
-new_key() ->
-    {cowboy_bridge,now()}.
-
-init({Req,DocRoot}) ->
+init({Req, DocRoot}) ->
     ReqKey = new_key(),
-    NewRequestCache = #request_cache{
-        body = not_loaded,
-        request = Req,
-        docroot = DocRoot
-    },
-    ?PUT,
+    put_key(ReqKey, #request_cache{body = not_loaded, request = Req, docroot = DocRoot}),
     ReqKey.
 
 protocol(_ReqKey) -> undefined.
 
 request_method(ReqKey) ->
-    ?GET,
+    {_RequestCache, Req} = get_key(ReqKey),
     {Method, Req} = cowboy_req:method(Req),
-    Method1 = list_to_atom(?B2L(Method)),
-    Method1.
+    list_to_atom(?B2L(Method)).
 
 path(ReqKey) ->
-    ?GET,
+    {_RequestCache, Req} = get_key(ReqKey),
     {Path, Req} = cowboy_req:path(Req),
     ?B2L(Path).
 
@@ -63,39 +50,33 @@ path(ReqKey) ->
 %%     b2l(RawPath).
 
 peer_ip(ReqKey) ->
-    ?GET,
+    {RequestCache, Req} = get_key(ReqKey),
     {{IP, _Port}, NewReq} = cowboy_req:peer(Req),
-    NewRequestCache = _RequestCache#request_cache{request=NewReq},
-    ?PUT,
+    put_key(ReqKey, RequestCache#request_cache{request = NewReq}),
     IP.
 
 peer_port(ReqKey) ->
-    ?GET,
+    {RequestCache, Req} = get_key(ReqKey),
     {{_IP, Port}, NewReq} = cowboy_req:peer(Req),
-    NewRequestCache = _RequestCache#request_cache{request=NewReq},
-    ?PUT,
+    put_key(ReqKey, RequestCache#request_cache{request = NewReq}),
     Port.
 
-
 headers(ReqKey) ->
-    ?GET,
-    {Headers,Req} = cowboy_req:headers(Req),
-    [{simple_bridge_util:atomize_header(Header), ?B2L(Val)} || {Header,Val} <- Headers].
+    {RequestCache, Req} = get_key(ReqKey),
+    {Headers, Req} = cowboy_req:headers(Req),
+    [{simple_bridge_util:atomize_header(Header), ?B2L(Val)} || {Header, Val} <- Headers].
 
 cookies(ReqKey) ->
-    ?GET,
+    {RequestCache, Req} = get_key(ReqKey),
     {Cookies, NewReq} = cowboy_req:cookies(Req),
-    NewRequestCache = _RequestCache#request_cache{request = NewReq},
-    ?PUT,
+    put_key(ReqKey, RequestCache#request_cache{request = NewReq}),
     [{?B2L(K), ?B2L(V)} || {K, V} <- Cookies].
 
 query_params(ReqKey) ->
-    ?GET,
+    {RequestCache, Req} = get_key(ReqKey),
     {QsVals, NewReq} = cowboy_req:qs_vals(Req),
-    NewRequestCache = _RequestCache#request_cache{request = NewReq},
-    ?PUT,
+    put_key(ReqKey, RequestCache#request_cache{request = NewReq}),
     [{?B2L(K), ?B2L(V)} || {K, V} <- QsVals].
-
 
 post_params(ReqKey) ->
     Body = request_body(ReqKey, binary),
@@ -105,41 +86,34 @@ post_params(ReqKey) ->
 request_body(ReqKey) ->
     request_body(ReqKey, string).
 
-request_body(ReqKey, binary) ->
-    ?GET,
-     %% We cache the body here because we can't request the body twice in cowboy or it'll crash
-    {Body, NewReq} = case _RequestCache#request_cache.body of
-        not_loaded ->
-            {ok, B, R} = cowboy_req:body(Req),
-            {B, R};
-        B -> {B, Req}
-    end,
-    NewRequestCache = _RequestCache#request_cache {
-			body = Body,
-			request = NewReq
-		       },
-    ?PUT,
-    Body;
 request_body(ReqKey, string) ->
-    ?B2L(request_body(ReqKey, binary)).
+    ?B2L(request_body(ReqKey, binary));
+request_body(ReqKey, binary) ->
+    {RequestCache, Req} = get_key(ReqKey),
+     %% We cache the body here because we can't request the body twice in cowboy or it'll crash
+    {Body, NewReq} =
+	case RequestCache#request_cache.body of
+	    not_loaded ->
+		{ok, B, R} = cowboy_req:body(Req),
+		{B, R};
+	    B -> {B, Req}
+	end,
+    put_key(ReqKey, RequestCache#request_cache{body = Body, request = NewReq}),
+    Body.
 
 %% TODO: Cowboy's stream_body doesn't support customizable Length and Timeout
 recv_from_socket(_Length, _Timeout, ReqKey) ->
-    ?GET,
-    %cowboy_http_req:init_stream(
+    {RequestCache, Req} = get_key(ReqKey),
     case cowboy_req:stream_body(Req) of
         {ok, Data, NewReq} ->
-            NewRequestCache = _RequestCache#request_cache{request=NewReq},
-            ?PUT,
+	    put_key(ReqKey, RequestCache#request_cache{request = NewReq}),
             Data;
         {done, NewReq} ->
-            NewRequestCache = _RequestCache#request_cache{request=NewReq},
-            ?PUT,
+	    put_key(ReqKey, RequestCache#request_cache{request = NewReq}),
             <<"">>;
         {error, Reason} ->
             exit({error, Reason}) %% exit(normal) instead?
     end.
-
 
 %% parse_qs, borrowed from Cowboy by Loic Hugian :)
 parse_qs(<<>>) -> [];
@@ -150,3 +124,12 @@ parse_qs(Qs) ->
         [Token] -> {URLDecode(Token), true};
         [Name, Value] -> {URLDecode(Name), URLDecode(Value)}
     end || Token <- Tokens].
+
+get_key(ReqKey) ->
+    RequestCache = #request_cache{request = Req} = cowboy_request_server:get(ReqKey),
+    {RequestCache, Req}.
+
+put_key(ReqKey, NewRequestCache) ->
+    cowboy_request_server:set(ReqKey, NewRequestCache).
+
+new_key() -> {cowboy_bridge, now()}.
