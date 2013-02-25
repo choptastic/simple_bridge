@@ -126,4 +126,4 @@ get_key(ReqKey) ->
 put_key(ReqKey, NewRequestCache) ->
     cowboy_request_server:set(ReqKey, NewRequestCache).
 
-new_key() -> {cowboy_bridge, now()}.
+new_key() -> {cowboy_bridge, erlang:make_ref()}.
