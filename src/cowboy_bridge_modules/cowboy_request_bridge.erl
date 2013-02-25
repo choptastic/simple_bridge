@@ -56,7 +56,7 @@ peer_port(ReqKey) ->
     Port.
 
 headers(ReqKey) ->
-    {RequestCache, Req} = get_key(ReqKey),
+    {_RequestCache, Req} = get_key(ReqKey),
     {Headers, Req} = cowboy_req:headers(Req),
     [{simple_bridge_util:atomize_header(Header), ?B2L(Val)} || {Header, Val} <- Headers].
 

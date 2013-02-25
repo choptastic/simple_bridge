@@ -41,7 +41,7 @@ build_response(ReqKey, Res) ->
             cowboy_request_server:set(ReqKey, RequestCache#request_cache{request = FinReq}),
             {ok, FinReq};
 
-        {file, P} ->
+        {file, _P} ->
             %% Note: that this entire {file, Path} section should be avoided
             %% as much as possible, since this reads the entire file into
             %% memory before sending.
