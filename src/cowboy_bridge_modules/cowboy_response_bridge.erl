@@ -74,10 +74,10 @@ build_response(ReqKey, Res) ->
 	    throw({error, fix_cowboy_routing})
     end.
 
-%% Just to strip leading slash, as cowboy tends to do this.
-%% If no leading slash, just return the path.
-strip_leading_slash([$/ | Path]) -> Path;
-strip_leading_slash(Path) -> Path.
+%% %% Just to strip leading slash, as cowboy tends to do this.
+%% %% If no leading slash, just return the path.
+%% strip_leading_slash([$/ | Path]) -> Path;
+%% strip_leading_slash(Path) -> Path.
 
 send(Code, Headers, Cookies, Body, Req) ->
     Req1 = prepare_cookies(Req, Cookies),
