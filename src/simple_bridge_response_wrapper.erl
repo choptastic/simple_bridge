@@ -38,7 +38,6 @@ clear_cookies() ->
     ?MODULE:new(Mod, Req, Res1).
 
 data(Data) ->
-    io:format("in reponse bridge data ~n"),
     Res1 = Res#response { data={data, Data} },
     ?MODULE:new(Mod, Req, Res1).
 
