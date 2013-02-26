@@ -41,7 +41,7 @@ build_response(ReqKey, Res) ->
             cowboy_request_server:set(ReqKey, RequestCache#request_cache{request = FinReq}),
             {ok, FinReq};
 
-        {file, _P} ->
+        {file, P} ->
             %% Note: that this entire {file, Path} section should be avoided
             %% as much as possible, since this reads the entire file into
             %% memory before sending.
@@ -71,7 +71,7 @@ build_response(ReqKey, Res) ->
 	    %% 	end,
             %% cowboy_request_server:set(ReqKey, RequestCache#request_cache{request = FinReq}),
             %% {ok, FinReq}
-	    throw({error, fix_cowboy_routing})
+	    throw({error, P, fix_cowboy_routing})
     end.
 
 %% %% Just to strip leading slash, as cowboy tends to do this.
