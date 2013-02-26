@@ -48,10 +48,7 @@ query_param(Param) ->
     proplists:get_value(Param, query_params()).
 
 post_params() ->
-
-    io:format( "wrapper, post_params ismultipart ~p ~n", [IsMultiPart] ),
-
-    case {request_method(), IsMultiPart} of
+ case {request_method(), IsMultiPart} of
         {'POST', true}  -> PostParams;
         {'POST', false} -> Mod:post_params(Req);
         {'PUT', false} -> Mod:post_params(Req);
