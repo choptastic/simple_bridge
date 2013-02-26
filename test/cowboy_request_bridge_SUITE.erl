@@ -1,27 +1,15 @@
 -module(cowboy_request_bridge_SUITE).
 -compile(export_all).
 -include_lib("common_test/include/ct.hrl").
-%% -include_lib("cowboy/include/http.hrl").
 
-suite() ->
-    [{timetrap,{seconds,30}}].
-
-%% init_per_suite(Config) ->
-%%     Config.
-
-%% end_per_suite(_Config) ->
-%%     ok.
-
-all() ->
-	[{group, onrequest}].
+suite() -> [{timetrap,{seconds,30}}].
+all() -> [{group, onrequest}].
 
 groups() ->
     [
      {onrequest, [], [
-		     % method,
 		      onrequest,
-		      lebel_request,
-		      static_request
+		      lebel_request
 		     ]}
     ].
 
@@ -42,25 +30,25 @@ init_per_group(onrequest, Config) ->
     Port = 33084,
     Transport = ranch_tcp,
     {ok, _} = cowboy:start_http(onrequest, 100, [{port, Port}], [
-								 {env, [{dispatch, init_dispatch(Config)}]},
+								 {env, [{dispatch, init_dispatch()}]},
 								 {max_keepalive, 50},
 								 {onrequest, fun onrequest_hook/1},
 								 {timeout, 500}
 								]),
     {ok, Client} = cowboy_client:init([]),
     [{scheme, <<"http">>}, {port, Port}, {opts, []},
-     {transport, Transport}, {client, Client}|Config].
+     {transport, Transport}, {client, Client} | Config].
 
 end_per_group(Name, _) ->
     cowboy:stop_listener(Name),
     ok.
 
-init_dispatch(_Config) ->
-    cowboy_router:compile([
-			   {"localhost", [
-					  {"/", nitrogen_handler, []}
-					 ]}
-			  ]).
+init_dispatch() ->
+    cowboy_router:compile(
+	%% {Host, list({Path, Handler, Opts})}
+	[{"localhost", [
+	    {'_', nitrogen_handler, []}
+    ]}]).
 
 build_url(Path, Config) ->
     {scheme, Scheme} = lists:keyfind(scheme, 1, Config),
@@ -75,22 +63,13 @@ onrequest(Config) ->
     ct:log("-> url ~p", [URL]),
     {ok, Client2} = cowboy_client:request(<<"GET">>, URL, Client),
     ct:log("-> request sent", []),
-    %% RR = cowboy_client:response(Client2),
-
-    %% ct:log("-> response RR ~p", [RR]),
     {ok, 200, Headers, Client3} = cowboy_client:response(Client2),
-
     ct:log("-> response sent", []),
-    %% R = cowboy_client:response_body(Client3),
-
-    %% ct:log("-> response ~p", [R]),
-
-    %{ok, Body, _} = cowboy_client:response_body(Client3),
-
-
-    %% somewhere in the reply page we should have a string from label
+    {ok, Body, _} = cowboy_client:response_body(Client3),
+    ct:log("-> response Body ~p", [Body]),
+    %% somewhere in the reply page we should have a string
     %% created by nitrogen page index.erl
-    %nomatch /= binary:match(Body, <<"some text in label for test">>),
+    nomatch /= binary:match(Body, <<"some text in label for test">>),
     ok.
 
 %% Hook for the above onrequest tests.
@@ -103,62 +82,8 @@ lebel_request(Config) ->
     {ok, 200, Headers, Client3} = cowboy_client:response(Client2),
     ct:log("-> response sent", []),
     {ok, Body, _} = cowboy_client:response_body(Client3),
+    ct:log("-> response Body ~p", [Body]),
     %% somewhere in the reply page we should have a string from label
     %% created by nitrogen page index.erl
     nomatch /= binary:match(Body, <<"label test">>),
     ok.
-
-static_request(Config) ->
-    Client = ?config(client, Config),
-    URL = build_url("/plain.html", Config),
-    ct:log("-> url ~p", [URL]),
-    {ok, Client2} = cowboy_client:request(<<"GET">>, URL, Client),
-    ct:log("-> request sent", []),
-    {ok, 200, Headers, Client3} = cowboy_client:response(Client2),
-    ct:log("-> response sent", []),
-    {ok, Body, _} = cowboy_client:response_body(Client3),
-    %% somewhere in the reply page we should have a string from label
-    %% created by nitrogen page index.erl
-    nomatch /= binary:match(Body, <<"Body Generated from html file">>),
-    ok.
-
-
-
-%%  %%for cowboy 0.6
-%% init_per_suite(Config) ->
-%%     application:start(inets),
-%%     application:start(cowboy),
-%%     application:start(mimetypes),
-%%     Config.
-
-%% end_per_suite(_Config) ->
-%%     application:stop(cowboy),
-%%     application:stop(inets),
-%%     application:stop(mimetypes),
-%%     ok.
-
-%% init_per_group(onrequest, Config) ->
-%% 	Port = 33082,
-%% 	Transport = cowboy_tcp_transport,
-%% 	{ok, _} = cowboy:start_listener(onrequest, 100,
-%% 		Transport, [{port, Port}],
-%% 		cowboy_http_protocol, [
-%% 			{dispatch, init_dispatch(Config)},
-%% 			{max_keepalive, 50},
-%% 			{onrequest, fun onrequest_hook/1},
-%% 			{timeout, 500}
-%% 		]),
-%% 	{ok, Client} = cowboy_client:init([]),
-%% 	[{scheme, <<"http">>}, {port, Port}, {opts, []},
-%% 		{transport, Transport}, {client, Client}|Config].
-
-%% end_per_group(Name, _) ->
-%%     cowboy:stop_listener(Name),
-%%     ok.
-
-%% %% Dispatch configuration.
-%% init_dispatch(Config) ->
-%%     DocRoot = ?config(data_dir, Config),
-%%     ct:log("-> doc root ~p", [DocRoot]),
-%%     %% [{[<<"localhost">>], [{[], nitrogen_handler, [{doc_root, DocRoot}]}]}].
-%%     [{[<<"localhost">>], [{'_', nitrogen_handler, [{doc_root, DocRoot}]}]}].
