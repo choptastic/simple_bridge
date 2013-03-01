@@ -5,13 +5,7 @@
 suite() -> [{timetrap,{seconds,30}}].
 all() -> [{group, onrequest}].
 
-groups() ->
-    [
-     {onrequest, [], [
-		      onrequest,
-		      lebel_request
-		     ]}
-    ].
+groups() -> [{onrequest, [], [request]}].
 
 %% for cowboy 0.8
 init_per_suite(Config) ->
@@ -32,7 +26,6 @@ init_per_group(onrequest, Config) ->
     {ok, _} = cowboy:start_http(onrequest, 100, [{port, Port}], [
 								 {env, [{dispatch, init_dispatch()}]},
 								 {max_keepalive, 50},
-								 {onrequest, fun onrequest_hook/1},
 								 {timeout, 500}
 								]),
     {ok, Client} = cowboy_client:init([]),
@@ -44,11 +37,7 @@ end_per_group(Name, _) ->
     ok.
 
 init_dispatch() ->
-    cowboy_router:compile(
-	%% {Host, list({Path, Handler, Opts})}
-	[{"localhost", [
-	    {'_', nitrogen_handler, []}
-    ]}]).
+    cowboy_router:compile([{"localhost", [{'_', cowboy_request_bridge_SUITE, []}]}]).
 
 build_url(Path, Config) ->
     {scheme, Scheme} = lists:keyfind(scheme, 1, Config),
@@ -57,7 +46,7 @@ build_url(Path, Config) ->
     PathBin = list_to_binary(Path),
     << Scheme/binary, "://localhost:", PortBin/binary, PathBin/binary >>.
 
-onrequest(Config) ->
+request(Config) ->
     Client = ?config(client, Config),
     URL = build_url("/", Config),
     ct:log("-> url ~p", [URL]),
@@ -67,23 +56,30 @@ onrequest(Config) ->
     ct:log("-> response sent", []),
     {ok, Body, _} = cowboy_client:response_body(Client3),
     ct:log("-> response Body ~p", [Body]),
-    %% somewhere in the reply page we should have a string
-    %% created by nitrogen page index.erl
-    nomatch /= binary:match(Body, <<"some text in label for test">>),
     ok.
 
-%% Hook for the above onrequest tests.
-onrequest_hook(Req) -> Req.
+%% handle to process http request
+-record(state, {headers, body}).
+init({_Transport, http}, Req, _Opts) ->
+    {ok, Req, #state{}}.
 
-lebel_request(Config) ->
-    Client = ?config(client, Config),
-    {ok, Client2} = cowboy_client:request(<<"GET">>, build_url("/label", Config), Client),
-    ct:log("-> request sent", []),
-    {ok, 200, Headers, Client3} = cowboy_client:response(Client2),
-    ct:log("-> response sent", []),
-    {ok, Body, _} = cowboy_client:response_body(Client3),
-    ct:log("-> response Body ~p", [Body]),
-    %% somewhere in the reply page we should have a string from label
-    %% created by nitrogen page index.erl
-    nomatch /= binary:match(Body, <<"label test">>),
+handle(Req, State) ->
+    ct:log("-> hit request handle", []),
+    %% init RequestBridge and ResponseBridge
+    RequestBridge = simple_bridge:make_request(cowboy_request_bridge, Req),
+    ResponseBridge = simple_bridge:make_response(cowboy_response_bridge, RequestBridge),
+
+    %% test API functions for RequestBridge interface
+    Protocol = RequestBridge:protocol(),
+    ct:log("-> Protocol ~p", [Protocol]),
+
+    'GET' = RequestMethod = RequestBridge:request_method(),
+    ct:log("-> RequestMethod ~p", [RequestMethod]),
+
+    %% create response
+    {ok, Req2} = cowboy_req:reply(200, [], <<"Simple Bridge test">>, Req),
+    ct:log("-> send response", []),
+    {ok, Req2, State}.
+
+terminate(_Reason, _Req, _State) ->
     ok.
