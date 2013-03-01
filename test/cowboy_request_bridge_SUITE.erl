@@ -49,19 +49,18 @@ build_url(Path, Config) ->
 
 -define(PATH, "/page").
 -define(QUERY_STRING, "query_string=type").
+-define(EXPECTED_RESPONSE, <<"Simple Bridge Response">>).
 
 request(Config) ->
     Client = ?config(client, Config),
     URL = build_url(?PATH ++ "?" ++ ?QUERY_STRING, Config),
     ct:log("-> url ~p", [URL]),
     {ok, Client2} = cowboy_client:request(<<"GET">>, URL, Client),
-    %% ct:log("-> request sent", []),
     {ok, 200, Headers, Client3} = cowboy_client:response(Client2),
-    %% ct:log("-> response sent", []),
     {ok, Body, _} = cowboy_client:response_body(Client3),
-    %% ct:log("-> response Body ~p", [Body]),
+    ct:log("-> response Body: ~p", [Body]),
+    ?EXPECTED_RESPONSE = Body,
     ok.
-
 
 %% RequestBridge interface
 %% {init, 1},           % Should accept the request value passed by the http server.
@@ -81,7 +80,7 @@ init({_Transport, http}, Req, _Opts) ->
     {ok, Req, #state{}}.
 
 handle(Req, State) ->
-    ct:log("-> hit request handle", []),
+    ct:log("-> init RequestBridge and ResponseBridge", []),
     %% init RequestBridge and ResponseBridge
     RequestBridge = simple_bridge:make_request(cowboy_request_bridge, Req),
     ResponseBridge = simple_bridge:make_response(cowboy_response_bridge, RequestBridge),
@@ -114,8 +113,12 @@ handle(Req, State) ->
     ct:log("-> Peer_IP ~p", [Peer_IP = RequestBridge:peer_ip()]),
     {127,0,0,1} = Peer_IP,
 
+    %% test ResponseBridge
     %% create response
-    {ok, Req2} = cowboy_req:reply(200, [], <<"Simple Bridge test">>, Req),
+    ResponseBridge1 = ResponseBridge:data(binary_to_list(?EXPECTED_RESPONSE)),
+    {ok, Req2} = ResponseBridge1:build_response(),
+    ct:log("-> Response ~p", [Req2]),
+
     ct:log("-> send response", []),
     {ok, Req2, State}.
 
