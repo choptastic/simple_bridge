@@ -46,17 +46,34 @@ build_url(Path, Config) ->
     PathBin = list_to_binary(Path),
     << Scheme/binary, "://localhost:", PortBin/binary, PathBin/binary >>.
 
+
+-define(PATH, "/page").
+-define(QUERY_STRING, "query_string=type").
+
 request(Config) ->
     Client = ?config(client, Config),
-    URL = build_url("/", Config),
+    URL = build_url(?PATH ++ "?" ++ ?QUERY_STRING, Config),
     ct:log("-> url ~p", [URL]),
     {ok, Client2} = cowboy_client:request(<<"GET">>, URL, Client),
-    ct:log("-> request sent", []),
+    %% ct:log("-> request sent", []),
     {ok, 200, Headers, Client3} = cowboy_client:response(Client2),
-    ct:log("-> response sent", []),
+    %% ct:log("-> response sent", []),
     {ok, Body, _} = cowboy_client:response_body(Client3),
-    ct:log("-> response Body ~p", [Body]),
+    %% ct:log("-> response Body ~p", [Body]),
     ok.
+
+
+%% RequestBridge interface
+%% {init, 1},           % Should accept the request value passed by the http server.
+%% {protocol, 1},       % http | https | undefined
+%% {request_method, 1}, % GET, POST, etc.
+%% {uri, 1},            % The uri (path and querystring)
+%% {path, 1},           % Just the path. (http://server.com/<PATH>?querystring)
+%% {headers, 1},        % Return a proplist of headers, key and value are strings.
+%% {cookies, 1},        % Return a proplist of cookies, key and value are strings.
+%% {query_params, 1},   % Return a proplist of query parameters, key and value are strings.
+%% {post_params, 1},    % Return a proplist of post parameters, key and value are strings.
+%% {peer_ip, 1}         % The remote IP address
 
 %% handle to process http request
 -record(state, {headers, body}).
@@ -73,8 +90,29 @@ handle(Req, State) ->
     Protocol = RequestBridge:protocol(),
     ct:log("-> Protocol ~p", [Protocol]),
 
-    'GET' = RequestMethod = RequestBridge:request_method(),
-    ct:log("-> RequestMethod ~p", [RequestMethod]),
+    ct:log("-> RequestMethod ~p", [RequestMethod = RequestBridge:request_method()]),
+    'GET' = RequestMethod,
+
+    ct:log("-> URI ~p", [URI = RequestBridge:uri()]),
+    "http://localhost:33084/page?query_string=type" = URI,
+
+    ct:log("-> Path ~p", [Path = RequestBridge:path()]),
+    ?PATH = Path,
+
+    ct:log("-> Headers ~p", [Headers = RequestBridge:headers()]),
+    [{host, _},{user_agent,"Cow"}] = Headers,
+
+    ct:log("-> Cookies ~p", [Cookies = RequestBridge:cookies()]),
+    [] = Cookies,
+
+    ct:log("-> Query_params ~p", [Query_params = RequestBridge:query_params()]),
+    [{"query_string","type"}] = Query_params,
+
+    ct:log("-> Post_params ~p", [Post_params = RequestBridge:post_params()]),
+    [] = Post_params,
+
+    ct:log("-> Peer_IP ~p", [Peer_IP = RequestBridge:peer_ip()]),
+    {127,0,0,1} = Peer_IP,
 
     %% create response
     {ok, Req2} = cowboy_req:reply(200, [], <<"Simple Bridge test">>, Req),
