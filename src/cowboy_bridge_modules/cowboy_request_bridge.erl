@@ -41,7 +41,9 @@ path(ReqKey) ->
     ?B2L(Path).
 
 uri(ReqKey) ->
-    path(ReqKey).
+    {_RequestCache, Req} = get_key(ReqKey),
+    {URL, Req} = cowboy_req:url(Req),
+    ?B2L(URL).
 
 peer_ip(ReqKey) ->
     {RequestCache, Req} = get_key(ReqKey),
