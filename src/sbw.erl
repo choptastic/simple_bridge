@@ -87,6 +87,8 @@
     file/2
 ]).
 
+-compile(export_all).
+
 %% TODO: Add Typespecs to all these
 
 %% REQUEST WRAPPERS
@@ -347,23 +349,23 @@ deep_post_params(Wrapper) ->
     parse_deep_post_params(Params, []).
 
 deep_post_param(Path, Wrapper) ->
-    find_deep_post_param(Path, deep_post_params(Wrapper)).
+    DeepParams = deep_post_params(Wrapper),
+    find_deep_post_param(Path, DeepParams).
 
-find_deep_post_param([], Params) ->
-    Params;
-find_deep_post_param([Index|Rest], Params) when is_integer(Index) ->
-    find_deep_post_param(Rest, lists:nth(Index, Params));
-find_deep_post_param([Index|Rest], Params) when is_list(Index) ->
-    find_deep_post_param(Rest, proplists:get_value(Index, Params)).
+find_deep_post_param([], DeepParams) ->
+    DeepParams;
+find_deep_post_param([Index0|Rest], DeepParams) ->
+    Index = simple_bridge_util:to_binary(Index0),
+    find_deep_post_param(Rest, proplists:get_value(Index, DeepParams)).
 
 parse_deep_post_params([], Acc) ->
     Acc;
 parse_deep_post_params([{Key, Value}|Rest], Acc) ->
-    case re:run(Key, "^(\\w+)(?:\\[([\\w-\\[\\]]*)\\])?$", [{capture, all_but_first, list}]) of
+    case re:run(Key, "^(\\w+)(?:\\[([\\w-\\[\\]]*)\\])?$", [{capture, all_but_first, binary}]) of
         {match, [Key]} ->
             parse_deep_post_params(Rest, [{Key, Value}|Acc]);
         {match, [KeyName, Path]} ->
-            PathList = re:split(Path, "\\]\\[", [{return, list}]),
+            PathList = re:split(Path, "\\]\\[", [{return, binary}]),
             parse_deep_post_params(Rest, insert_into(Acc, [KeyName|PathList], Value));
         Other ->
             error_logger:warning_msg("Unable to parse key: ~p. Returned: ~p", [Key, Other]),

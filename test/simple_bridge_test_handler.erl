@@ -17,8 +17,15 @@ run("/request_method_post", Bridge) -> simple_call(request_method, Bridge);
 run("/request_body", Bridge) -> simple_call(request_body, Bridge);
 run("/query_params", Bridge) -> simple_call(query_params, Bridge);
 run("/post_params", Bridge) -> simple_call(post_params, Bridge);
+run("/deep_post_params", Bridge) -> simple_call(deep_post_params, Bridge);
+run("/deep_post_lookup", Bridge) -> deep_post_lookup(Bridge);
 run(Path, _Bridge) -> io_lib:format("Unhandled Path: ~p", [Path]).
 
 simple_call(Call, Bridge) ->
 	Val = sbw:Call(Bridge),
 	io_lib:format("~p", [Val]).
+
+deep_post_lookup(Bridge) ->
+	Path = string:tokens(sbw:query_param(path, Bridge)),
+	ActualParam = sbw:post_param(Path, Bridge),
+	sbw:deep_post_param(ActualParam, Bridge).

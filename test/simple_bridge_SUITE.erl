@@ -1,3 +1,4 @@
+
 -module(simple_bridge_SUITE).
 -include_lib("common_test/include/ct.hrl").
 -export([
@@ -17,6 +18,7 @@
 	request_body/1,
 	query_params/1,
 	post_params/1,
+	deep_post_params1/1,
 	static/1,
 	deep_static/1,
 	deeper_static/1
@@ -27,7 +29,12 @@ all() -> [{group, main}].
 groups() ->
 	[{main, 
 		[parallel, {repeat, 1}],
-		[peer_ip, request_method_get, request_method_post, request_body, protocol, path, query_params, post_params, static, deep_static, deeper_static]
+		[
+			peer_ip, request_method_get, request_method_post, request_body,
+			protocol, path, query_params,
+			post_params, deep_post_params1,
+			static, deep_static, deeper_static
+		]
 	}].
 
 init_per_group(main, Config) ->
@@ -67,6 +74,9 @@ query_params(_) ->
 
 post_params(_) ->
 	"[{<<\"a\">>,<<\"1\">>},{<<\"b\">>,<<\"2\">>}]" = post("post_params", "a=1&b=2").
+
+deep_post_params1(_) ->
+	"y" = post("deep_post_params", "a[0]=x&a[1]=y").
 	
 static(_) ->
 	"1234\n" = get_static("static/test_static.txt").
