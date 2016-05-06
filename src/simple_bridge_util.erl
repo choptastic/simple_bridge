@@ -22,6 +22,7 @@
     expires/2,
     to_list/1,
     to_binary/1,
+    to_unicode_binary/1,
     has_header/2,
     has_any_header/2,
     ensure_header/3,
@@ -314,6 +315,11 @@ to_binary(A) when is_atom(A) ->
 to_binary(L) ->
     iolist_to_binary(L).
 
+-spec to_unicode_binary(iolist() | atom() | binary()) -> binary().
+to_unicode_binary(B) when is_binary(B); is_list(B) ->
+    unicode:characters_to_binary(B);
+to_unicode_binary(A) when is_atom(A) ->
+    to_unicode_binary(atom_to_list(A)).
 
 
 %% This is borrowed from Nitrogen
